@@ -1,4 +1,4 @@
-name: Build and Push Docker Image
+name: Build, Push Docker Image, and Deploy to GKE
 
 on:
   push:
@@ -25,26 +25,21 @@ jobs:
 
       # Authenticate Docker with Google Cloud
       - name: Authenticate Docker
-        run: gcloud auth configure-docker
+        run: gcloud auth configure-docker asia-southeast1-docker.pkg.dev
 
-      # Encode apps.json to base64
-      - name: Encode apps.json
+      # Build and push the Docker image
+      - name: build and push the docker image
+        env:
+          GOOGLE_PROJECT: ${{ secrets.GOOGLE_PROJECT }}
         run: |
-          export APPS_JSON_BASE64=$(base64 -w 0 apps.json)
-          echo "APPS_JSON_BASE64=$APPS_JSON_BASE64" >> $GITHUB_ENV
+          docker build -t asia-southeast1-docker.pkg.dev/erpnext-ptuddn-454813/demo/nginx:latest .
+          docker push asia-southeast1-docker.pkg.dev/erpnext-ptuddn-454813/demo/nginx:latest
 
-      # Build Docker image
-      - name: Build Docker Image
+      # Deploy to GKE
+      - name: deploy to gke
+        env:
+          GOOGLE_PROJECT: ${{ secrets.GOOGLE_PROJECT }}
         run: |
-          docker build \
-            --no-cache \
-            --build-arg=FRAPPE_PATH=https://github.com/frappe/frappe \
-            --build-arg=FRAPPE_BRANCH=version-15 \
-            --build-arg=APPS_JSON_BASE64=$APPS_JSON_BASE64 \
-            --tag=gcr.io/<YOUR_GCP_PROJECT_ID>/custom-erpnext:1.0.0 \
-            --file=images/layered/Containerfile .
-
-      # Push Docker image to Google Container Registry
-      - name: Push Docker Image
-        run: |
-          docker push gcr.io/erpnext-ptuddn-454813/custom-erpnext:1.0.0
+          gcloud container clusters get-credentials cicd --region asia-southeast1
+          sed -i "s/GOOGLE_PROJECT/$GOOGLE_PROJECT/g" resources.yaml
+          kubectl apply -f resources.yaml
