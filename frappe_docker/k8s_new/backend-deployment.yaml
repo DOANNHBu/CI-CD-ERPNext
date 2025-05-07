@@ -1,0 +1,80 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: backend
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: backend
+  template:
+    metadata:
+      labels:
+        app: backend
+    spec:
+      tolerations:
+      - key: "node-role.kubernetes.io/control-plane"
+        operator: "Exists"
+        effect: "NoSchedule"
+      containers:
+      - name: backend
+        # image: ghcr.io/lxbach10012004/custom-erpnext:1.0.0
+        image: asia-southeast1-docker.pkg.dev/erpnext-ptuddn-454813/custom-erp/custom-erpnext:1.0.0
+        env:
+        - name: DB_HOST
+          value: "db"
+        - name: DB_PORT
+          value: "3306"
+        - name: MYSQL_ROOT_PASSWORD
+          value: "admin"
+        - name: MARIADB_ROOT_PASSWORD
+          value: "admin"
+        # resources:
+        #   requests:
+        #     cpu: "500m"
+        #     memory: "512Mi"
+        #   limits:
+        #     cpu: "1"
+        #     memory: "1Gi"
+        resources:
+          requests:
+            cpu: 125m
+            memory: 128Mi
+          limits:
+            cpu: 250m
+            memory: 256Mi
+
+        volumeMounts:
+        - name: sites
+          mountPath: /home/frappe/frappe-bench/sites
+        - name: logs
+          mountPath: /home/frappe/frappe-bench/logs
+      # volumes:
+      # - name: sites
+      #   hostPath:
+      #     path: "/mnt/data/sites"
+      #     type: DirectoryOrCreate
+      # - name: logs
+      #   hostPath:
+      #     path: "/mnt/data/logs"
+      #     type: DirectoryOrCreate
+      
+      volumes:
+      - name: sites
+        persistentVolumeClaim:
+          claimName: sites
+      - name: logs
+        persistentVolumeClaim:
+          claimName: logs
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: backend
+spec:
+  selector:
+    app: backend
+  ports:
+  - port: 8000
+    targetPort: 8000

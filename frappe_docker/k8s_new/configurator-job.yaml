@@ -1,0 +1,109 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: configurator
+spec:
+  template:
+    spec:
+      securityContext:
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+      # Init container to fix ownership
+      initContainers:
+      - name: init-permissions
+        image: busybox
+        command:
+        - sh
+        - -c
+        - |
+          chown -R 1000:1000 /mnt/sites || true
+          chown -R 1000:1000 /mnt/logs || true
+        volumeMounts:
+        - name: sites
+          mountPath: /mnt/sites
+        - name: logs
+          mountPath: /mnt/logs
+        securityContext:
+          runAsUser: 0
+
+      tolerations:
+      - key: "node-role.kubernetes.io/control-plane"
+        operator: "Exists"
+        effect: "NoSchedule"
+      containers:
+      - name: configurator
+        # image: ghcr.io/lxbach10012004/custom-erpnext:1.0.0
+        image: asia-southeast1-docker.pkg.dev/erpnext-ptuddn-454813/custom-erp/custom-erpnext:1.0.0
+        workingDir: /home/frappe/frappe-bench
+        command:
+        - bash
+        - -c
+        - |
+          mkdir -p sites logs
+
+          # Write apps.txt
+          echo -e 'frappe\nerpnext' > sites/apps.txt
+          cp sites/apps.txt apps.txt
+
+          # Overwrite common_site_config.json
+          cat <<EOF > sites/common_site_config.json
+          {
+            "db_host": "$DB_HOST",
+            "db_port": "$DB_PORT",
+            "redis_cache": "redis://$REDIS_CACHE",
+            "redis_queue": "redis://$REDIS_QUEUE",
+            "redis_socketio": "redis://$REDIS_QUEUE",
+            "socketio_port": "$SOCKETIO_PORT"
+          }
+          EOF
+
+          # Set config via bench (redundant but harmless)
+          bench set-config -g db_host $DB_HOST
+          bench set-config -gp db_port $DB_PORT
+          bench set-config -g redis_cache "redis://$REDIS_CACHE"
+          bench set-config -g redis_queue "redis://$REDIS_QUEUE"
+          bench set-config -g redis_socketio "redis://$REDIS_QUEUE"
+          bench set-config -gp socketio_port $SOCKETIO_PORT
+        env:
+        - name: DB_HOST
+          value: "db"
+        - name: DB_PORT
+          value: "3306"
+        - name: REDIS_CACHE
+          value: "redis-cache:6379"
+        - name: REDIS_QUEUE
+          value: "redis-queue:6379"
+        - name: SOCKETIO_PORT
+          value: "9000"
+        volumeMounts:
+        - name: sites
+          mountPath: /home/frappe/frappe-bench/sites
+        - name: logs
+          mountPath: /home/frappe/frappe-bench/logs
+        resources:
+          requests:
+            cpu: 250m
+            memory: 1Gi
+          limits:
+            cpu: 500m
+            memory: 2Gi
+
+      # volumes:
+      # - name: sites
+      #   hostPath:
+      #     path: /mnt/data/sites
+      #     type: DirectoryOrCreate
+      # - name: logs
+      #   hostPath:
+      #     path: /mnt/data/logs
+      #     type: DirectoryOrCreate
+      volumes:
+      - name: sites
+        persistentVolumeClaim:
+          claimName: sites
+      - name: logs
+        persistentVolumeClaim:
+          claimName: logs
+
+      restartPolicy: OnFailure

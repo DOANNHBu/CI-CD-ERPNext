@@ -1,0 +1,54 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: scheduler
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: scheduler
+  template:
+    metadata:
+      labels:
+        app: scheduler
+    spec:
+      tolerations:
+      - key: "node-role.kubernetes.io/control-plane"
+        operator: "Exists"
+        effect: "NoSchedule"
+      containers:
+      - name: scheduler
+        # image: ghcr.io/lxbach10012004/custom-erpnext:1.0.0
+        image: asia-southeast1-docker.pkg.dev/erpnext-ptuddn-454813/custom-erp/custom-erpnext:1.0.0
+        command:
+        - bench
+        - schedule
+        resources:
+          requests:
+            cpu: "250m"
+            memory: "512Mi"
+          limits:
+            cpu: "500m"
+            memory: "1Gi"
+        volumeMounts:
+        - name: sites
+          mountPath: /home/frappe/frappe-bench/sites
+        - name: logs
+          mountPath: /home/frappe/frappe-bench/logs
+      # volumes:
+      # - name: sites
+      #   hostPath:
+      #     path: "/mnt/data/sites"
+      #     type: DirectoryOrCreate
+      # - name: logs
+      #   hostPath:
+      #     path: "/mnt/data/logs"
+      #     type: DirectoryOrCreate
+      
+      volumes:
+      - name: sites
+        persistentVolumeClaim:
+          claimName: sites
+      - name: logs
+        persistentVolumeClaim:
+          claimName: logs

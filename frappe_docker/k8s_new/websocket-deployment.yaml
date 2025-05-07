@@ -1,0 +1,74 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: websocket
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: websocket
+  template:
+    metadata:
+      labels:
+        app: websocket
+    spec:
+      tolerations:
+      - key: "node-role.kubernetes.io/control-plane"
+        operator: "Exists"
+        effect: "NoSchedule"
+      containers:
+      - name: websocket
+        # image: ghcr.io/lxbach10012004/custom-erpnext:1.0.0
+        image: asia-southeast1-docker.pkg.dev/erpnext-ptuddn-454813/custom-erp/custom-erpnext:1.0.0
+        command:
+        - node
+        - /home/frappe/frappe-bench/apps/frappe/socketio.js
+        ports:
+        - containerPort: 9000
+        # resources:
+        #   requests:
+        #     cpu: "250m"
+        #     memory: "512Mi"
+        #   limits:
+        #     cpu: "500m"
+        #     memory: "1Gi"
+        resources:
+          requests:
+            cpu: 125m
+            memory: 128Mi
+          limits:
+            cpu: 250m
+            memory: 256Mi
+        volumeMounts:
+        - name: sites
+          mountPath: /home/frappe/frappe-bench/sites
+        - name: logs
+          mountPath: /home/frappe/frappe-bench/logs
+      # volumes:
+      # - name: sites
+      #   hostPath:
+      #     path: "/mnt/data/sites"
+      #     type: DirectoryOrCreate
+      # - name: logs
+      #   hostPath:
+      #     path: "/mnt/data/logs"
+      #     type: DirectoryOrCreate
+      
+      volumes:
+      - name: sites
+        persistentVolumeClaim:
+          claimName: sites
+      - name: logs
+        persistentVolumeClaim:
+          claimName: logs
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: websocket
+spec:
+  selector:
+    app: websocket
+  ports:
+  - port: 9000
+    targetPort: 9000

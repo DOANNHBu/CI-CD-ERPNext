@@ -1,0 +1,144 @@
+# ---
+# apiVersion: v1
+# kind: PersistentVolumeClaim
+# metadata:
+#   name: db-data
+# spec:
+#   accessModes:
+#     - ReadWriteOncePod
+#   resources:
+#     requests:
+#       storage: 10Gi
+# ---
+# apiVersion: v1
+# kind: PersistentVolumeClaim
+# metadata:
+#   name: redis-queue-data
+# spec:
+#   accessModes:
+#     - ReadWriteOncePod
+#   resources:
+#     requests:
+#       storage: 1Gi
+# ---
+# apiVersion: v1
+# kind: PersistentVolumeClaim
+# metadata:
+#   name: sites
+# spec:
+#   accessModes:
+#     - ReadWriteOncePod
+#   resources:
+#     requests:
+#       storage: 5Gi
+# ---
+# apiVersion: v1
+# kind: PersistentVolumeClaim
+# metadata:
+#   name: logs
+# spec:
+#   accessModes:
+#     - ReadWriteOncePod
+#   resources:
+#     requests:
+#       storage: 5Gi
+
+# ---
+# apiVersion: v1
+# kind: PersistentVolumeClaim
+# metadata:
+#   name: db-data
+# spec:
+#   accessModes:
+#     - ReadWriteOncePod
+#   resources:
+#     requests:
+#       storage: 10Gi
+#   storageClassName: standard
+
+
+
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: redis-queue-data
+spec:
+  accessModes:
+    - ReadWriteOncePod
+  resources:
+    requests:
+      storage: 1Gi
+  storageClassName: standard-rwo
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: sites
+spec:
+  accessModes:
+    - ReadWriteOncePod
+  resources:
+    requests:
+      storage: 5Gi
+  storageClassName: standard-rwo
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: logs
+spec:
+  accessModes:
+    - ReadWriteOncePod
+  resources:
+    requests:
+      storage: 5Gi
+  storageClassName: standard-rwo
+
+
+# apiVersion: v1
+# kind: Pod
+# metadata:
+#   name: redis-queue
+# spec:
+#   containers:
+#   - name: redis-container
+#     image: asia-southeast1-docker.pkg.dev/erpnext-ptuddn-454813/custom-erp/custom-erpnext:1.0.0
+#     volumeMounts:
+#     - name: redis-queue-data
+#       mountPath: /data/redis
+#   volumes:
+#   - name: redis-queue-data
+#     emptyDir: {}
+
+# ---
+# apiVersion: v1
+# kind: Pod
+# metadata:
+#   name: sites-pod
+# spec:
+#   containers:
+#   - name: sites-container
+#     image: asia-southeast1-docker.pkg.dev/erpnext-ptuddn-454813/custom-erp/custom-erpnext:1.0.0
+#     volumeMounts:
+#     - name: sites
+#       mountPath: /data/sites
+#   volumes:
+#   - name: sites
+#     emptyDir: {}
+
+# ---
+# apiVersion: v1
+# kind: Pod
+# metadata:
+#   name: logs-pod
+# spec:
+#   containers:
+#   - name: logs-container
+#     image: asia-southeast1-docker.pkg.dev/erpnext-ptuddn-454813/custom-erp/custom-erpnext:1.0.0
+#     volumeMounts:
+#     - name: logs
+#       mountPath: /data/logs
+#   volumes:
+#   - name: logs
+#     emptyDir: {}

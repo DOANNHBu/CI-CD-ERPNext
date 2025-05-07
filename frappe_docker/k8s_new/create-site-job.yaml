@@ -1,0 +1,114 @@
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: drop-db-job
+spec:
+  template:
+    spec:
+      restartPolicy: OnFailure  # <- Move it here
+      containers:
+      - name: drop-db
+        image: mariadb:10.6
+        command: ["bash", "-c"]
+        args:
+          - |
+            echo "Waiting for DB to be ready..."
+            until mariadb -h db -uroot -padmin -e "SELECT 1;" > /dev/null 2>&1; do sleep 2; done
+            mariadb -h db -uroot -padmin -e "DROP DATABASE IF EXISTS _5e5899d8398b5f7b;"
+        resources:
+          requests:
+            cpu: "250m"
+            memory: "256Mi"
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: create-site
+spec:
+  template:
+    spec:
+      tolerations:
+      - key: "node-role.kubernetes.io/control-plane"
+        operator: "Exists"
+        effect: "NoSchedule"
+      containers:
+      - name: create-site
+        # image: ghcr.io/lxbach10012004/custom-erpnext:1.0.0
+        image: asia-southeast1-docker.pkg.dev/erpnext-ptuddn-454813/custom-erp/custom-erpnext:1.0.0
+        command:
+        - bash
+        - -c
+        args:
+        - |
+          wait-for-it -t 120 db:3306;
+          wait-for-it -t 120 redis-cache:6379;
+          wait-for-it -t 120 redis-queue:6379;
+
+          export SITE_NAME=frontend
+          export SITE_PATH="sites/$SITE_NAME"
+          export DB_ROOT_USER=root
+          export DB_ROOT_PASSWORD=admin
+
+          # Cleanup: Remove all old sites except configs
+          echo "Removing old sites..."
+          find sites -mindepth 1 -maxdepth 1 -type d ! -name 'assets' -exec rm -rf {} +
+
+          # Drop old site databases
+          echo "Dropping old databases..."
+          mysql -u$DB_ROOT_USER -p$DB_ROOT_PASSWORD -e "SHOW DATABASES LIKE '%%';" | grep -v Database | grep -vFf <(echo -e "information_schema\nperformance_schema\nmysql\nsys") | while read db; do
+            echo "Dropping database: $db";
+            mysql -u$DB_ROOT_USER -p$DB_ROOT_PASSWORD -e "DROP DATABASE IF EXISTS \`$db\`;";
+          done
+
+          # Wait for config keys (if populated externally, otherwise skip this part)
+          export start=`date +%s`;
+          until [[ -n `grep -hs ^ sites/common_site_config.json | jq -r ".db_host // empty"` ]] && \
+                [[ -n `grep -hs ^ sites/common_site_config.json | jq -r ".redis_cache // empty"` ]] && \
+                [[ -n `grep -hs ^ sites/common_site_config.json | jq -r ".redis_queue // empty"` ]];
+          do
+            echo "Waiting for sites/common_site_config.json to be created";
+            sleep 5;
+            if (( `date +%s`-start > 120 )); then
+              echo "could not find sites/common_site_config.json with required keys";
+              exit 1
+            fi
+          done;
+
+          echo "Creating new site '$SITE_NAME'";
+          bench new-site --mariadb-user-host-login-scope='%' \
+            --admin-password=admin \
+            --db-root-username=$DB_ROOT_USER \
+            --db-root-password=$DB_ROOT_PASSWORD \
+            --install-app erpnext \
+            --set-default $SITE_NAME;
+
+        resources:
+          requests:
+            cpu: "250m"
+            memory: "512Mi"
+          limits:
+            cpu: "500m"
+            memory: "1Gi"
+        volumeMounts:
+        - name: sites
+          mountPath: /home/frappe/frappe-bench/sites
+        - name: logs
+          mountPath: /home/frappe/frappe-bench/logs
+      # volumes:
+      # - name: sites
+      #   hostPath:
+      #     path: "/mnt/data/sites"
+      #     type: DirectoryOrCreate
+      # - name: logs
+      #   hostPath:
+      #     path: "/mnt/data/logs"
+      #     type: DirectoryOrCreate
+      volumes:
+      - name: sites
+        persistentVolumeClaim:
+          claimName: sites
+      - name: logs
+        persistentVolumeClaim:
+          claimName: logs
+      restartPolicy: OnFailure

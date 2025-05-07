@@ -1,0 +1,142 @@
+# apiVersion: apps/v1
+# kind: StatefulSet
+# metadata:
+#   name: db
+# spec:
+#   serviceName: db
+#   replicas: 1
+#   selector:
+#     matchLabels:
+#       app: db
+#   template:
+#     metadata:
+#       labels:
+#         app: db
+#     spec:
+#       tolerations:
+#       - key: "node-role.kubernetes.io/control-plane"
+#         operator: "Exists"
+#         effect: "NoSchedule"
+#       containers:
+#       - name: mariadb
+#         image: mariadb:10.6
+#         env:
+#         - name: MYSQL_ROOT_PASSWORD
+#           value: "admin"
+#         - name: MARIADB_ROOT_PASSWORD
+#           value: "admin"
+#         - name: MYSQL_DATABASE
+#           value: "erpnext"
+#         - name: MYSQL_USER
+#           value: "erpnext"
+#         - name: MYSQL_PASSWORD
+#           value: "admin"
+#         ports:
+#         - containerPort: 3306
+#         resources:
+#           requests:
+#             cpu: "1"
+#             memory: "1Gi"
+#           limits:
+#             cpu: "2"
+#             memory: "2Gi"
+#         volumeMounts:
+#         - name: db-data
+#           mountPath: /var/lib/mysql
+#         readinessProbe:
+#           exec:
+#             command:
+#             - mysqladmin
+#             - ping
+#             - -h
+#             - localhost
+#             - -u
+#             - root
+#             - -padmin
+#           initialDelaySeconds: 30
+#           periodSeconds: 5
+#           failureThreshold: 6
+#       volumes:
+#       - name: db-data
+#         hostPath:
+#           path: "/var/lib/mysql-data"
+#           type: DirectoryOrCreate
+# ---
+# apiVersion: v1
+# kind: Service
+# metadata:
+#   name: db
+# spec:
+#   selector:
+#     app: db
+#   ports:
+#   - port: 3306
+#     targetPort: 3306
+#   clusterIP: None
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: db
+spec:
+  serviceName: db
+  replicas: 1
+  selector:
+    matchLabels:
+      app: db
+  template:
+    metadata:
+      labels:
+        app: db
+    spec:
+      tolerations:
+      - key: "node-role.kubernetes.io/control-plane"
+        operator: "Exists"
+        effect: "NoSchedule"
+      containers:
+      - name: mariadb
+        image: mariadb:10.6
+        env:
+        - name: MYSQL_ROOT_PASSWORD
+          value: "admin"
+        - name: MARIADB_ROOT_PASSWORD
+          value: "admin"
+        - name: MYSQL_DATABASE
+          value: "erpnext"
+        - name: MYSQL_USER
+          value: "erpnext"
+        - name: MYSQL_PASSWORD
+          value: "admin"
+        ports:
+        - containerPort: 3306
+        resources:
+          requests:
+            cpu: "250m"
+            memory: "1Gi"
+          limits:
+            cpu: "500m"
+            memory: "1Gi"
+        volumeMounts:
+        - name: db-data
+          mountPath: /var/lib/mysql
+        readinessProbe:
+          exec:
+            command:
+            - mysqladmin
+            - ping
+            - -h
+            - localhost
+            - -u
+            - root
+            - -padmin
+          initialDelaySeconds: 30
+          periodSeconds: 5
+          failureThreshold: 6
+  volumeClaimTemplates:
+  - metadata:
+      name: db-data
+    spec:
+      accessModes: ["ReadWriteOncePod"]
+      resources:
+        requests:
+          storage: 10Gi
+      storageClassName: standard-rwo
