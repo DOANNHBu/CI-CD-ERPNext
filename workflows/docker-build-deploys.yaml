@@ -1,0 +1,50 @@
+name: Build and Push Docker Image
+
+on:
+  push:
+    branches:
+      - main # Thực hiện khi có push vào nhánh main
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      # Checkout code
+      - name: code checkout
+        uses: actions/checkout@v2
+
+      # Setup Google Cloud SDK
+      - name: install the gcloud cli
+        uses: google-github-actions/setup-gcloud@v0
+        with:
+          project_id: ${{ secrets.GOOGLE_PROJECT }}
+          service_account_key: ${{ secrets.GOOGLE_APPLICATION_CREDENTIALS }}
+          install_components: "gke-gcloud-auth-plugin"
+          export_default_credentials: true
+
+      # Authenticate Docker with Google Cloud
+      - name: Authenticate Docker
+        run: gcloud auth configure-docker
+
+      # Encode apps.json to base64
+      - name: Encode apps.json
+        run: |
+          export APPS_JSON_BASE64=$(base64 -w 0 apps.json)
+          echo "APPS_JSON_BASE64=$APPS_JSON_BASE64" >> $GITHUB_ENV
+
+      # Build Docker image
+      - name: Build Docker Image
+        run: |
+          docker build \
+            --no-cache \
+            --build-arg=FRAPPE_PATH=https://github.com/frappe/frappe \
+            --build-arg=FRAPPE_BRANCH=version-15 \
+            --build-arg=APPS_JSON_BASE64=$APPS_JSON_BASE64 \
+            --tag=gcr.io/<YOUR_GCP_PROJECT_ID>/custom-erpnext:1.0.0 \
+            --file=images/layered/Containerfile .
+
+      # Push Docker image to Google Container Registry
+      - name: Push Docker Image
+        run: |
+          docker push gcr.io/erpnext-ptuddn-454813/custom-erpnext:1.0.0
