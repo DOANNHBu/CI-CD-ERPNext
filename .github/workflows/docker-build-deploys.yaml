@@ -11,11 +11,11 @@ jobs:
 
     steps:
       # Checkout code
-      - name: code checkout
+      - name: Checkout code
         uses: actions/checkout@v2
 
       # Setup Google Cloud SDK
-      - name: install the gcloud cli
+      - name: Install the gcloud CLI
         uses: google-github-actions/setup-gcloud@v0
         with:
           project_id: ${{ secrets.GOOGLE_PROJECT }}
@@ -27,16 +27,28 @@ jobs:
       - name: Authenticate Docker
         run: gcloud auth configure-docker asia-southeast1-docker.pkg.dev
 
+      # Encode apps.json to base64
+      - name: Encode apps.json
+        run: |
+          export APPS_JSON_BASE64=$(base64 -w 0 apps.json)
+          echo "APPS_JSON_BASE64=$APPS_JSON_BASE64" >> $GITHUB_ENV
+
       # Build and push the Docker image
-      - name: build and push the docker image
+      - name: Build and Push Docker Image
         env:
           GOOGLE_PROJECT: ${{ secrets.GOOGLE_PROJECT }}
         run: |
-          docker build -t asia-southeast1-docker.pkg.dev/erpnext-ptuddn-454813/demo/nginx:latest .
-          docker push asia-southeast1-docker.pkg.dev/erpnext-ptuddn-454813/demo/nginx:latest
+          docker build \
+            --no-cache \
+            --build-arg=FRAPPE_PATH=https://github.com/frappe/frappe \
+            --build-arg=FRAPPE_BRANCH=version-15 \
+            --build-arg=APPS_JSON_BASE64=$APPS_JSON_BASE64 \
+            --tag=asia-southeast1-docker.pkg.dev/${{ secrets.GOOGLE_PROJECT }}/demo/nginx:latest \
+            --file=images/layered/Containerfile .
+          docker push asia-southeast1-docker.pkg.dev/${{ secrets.GOOGLE_PROJECT }}/demo/nginx:latest
 
       # Deploy to GKE
-      - name: deploy to gke
+      - name: Deploy to GKE
         env:
           GOOGLE_PROJECT: ${{ secrets.GOOGLE_PROJECT }}
         run: |
