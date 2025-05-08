@@ -3,7 +3,7 @@ name: Build, Push Docker Image, and Deploy to GKE
 on:
   push:
     branches:
-      - main # Thực hiện khi có push vào nhánh main
+      - master # Thực hiện khi có push vào nhánh main
 
 jobs:
   build:
