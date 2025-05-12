@@ -3,7 +3,7 @@ name: Build, Push Docker Image, and Deploy to GKE
 on:
   push:
     branches:
-      - master # Thực hiện khi có push vào nhánh main
+      - master # Trigger on push to the master branch
 
 jobs:
   build:
@@ -47,7 +47,7 @@ jobs:
             --file=frappe_docker/images/layered/Containerfile .
           docker push asia-southeast1-docker.pkg.dev/${{ secrets.GOOGLE_PROJECT }}/demo/nginx:latest
 
-      # Deploy to GKE
+      # Deploy to GKE using Kubernetes manifests
       - name: Deploy to GKE
         env:
           GOOGLE_PROJECT: ${{ secrets.GOOGLE_PROJECT }}
@@ -55,3 +55,17 @@ jobs:
           gcloud container clusters get-credentials cicd --region asia-southeast1
           sed -i "s/GOOGLE_PROJECT/$GOOGLE_PROJECT/g" resources.yaml
           kubectl apply -f resources.yaml
+
+      # Deploy to GKE using Helm
+      - name: Deploy to GKE with Helm
+        env:
+          GOOGLE_PROJECT: ${{ secrets.GOOGLE_PROJECT }}
+        run: |
+          gcloud container clusters get-credentials cicd --region asia-southeast1
+          helm repo add frappe https://helm.erpnext.com
+          helm repo update
+          helm upgrade --install frappe-bench --namespace erpnext frappe/erpnext \
+            --set image.repository=asia-southeast1-docker.pkg.dev/${{ secrets.GOOGLE_PROJECT }}/demo/nginx \
+            --set image.tag=latest \
+            --set persistence.worker.storageClass=nfs \
+            -f frappe_helm/custom-values.yaml
