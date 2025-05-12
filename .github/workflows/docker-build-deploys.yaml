@@ -23,6 +23,29 @@ jobs:
           install_components: "gke-gcloud-auth-plugin"
           export_default_credentials: true
 
+      # Connect to GKE Cluster
+      - name: Connect to GKE Cluster
+        run: |
+          gcloud container clusters get-credentials erp-next-cluster --region asia-southeast1
+
+      # Cleanup Existing Resources
+      - name: Cleanup Kubernetes Resources
+        run: |
+          helm uninstall frappe-bench -n erpnext || true
+          helm uninstall in-cluster -n nfs || true
+          kubectl delete pod --all --grace-period=0 --force -n nfs || true
+          kubectl delete pvc --all --grace-period=0 --force -n nfs || true
+          kubectl delete pv --all --grace-period=0 --force -n nfs || true
+          kubectl delete configmap --all --grace-period=0 --force -n nfs || true
+          kubectl delete secret --all --grace-period=0 --force -n nfs || true
+          kubectl delete pod --all --grace-period=0 --force -n erpnext || true
+          kubectl delete pvc --all --grace-period=0 --force -n erpnext || true
+          kubectl delete pv --all --grace-period=0 --force -n erpnext || true
+          kubectl delete configmap --all --grace-period=0 --force -n erpnext || true
+          kubectl delete secret --all --grace-period=0 --force -n erpnext || true
+          kubectl delete namespace erpnext || true
+          kubectl delete namespace nfs || true
+
       # Authenticate Docker with Google Cloud
       - name: Authenticate Docker
         run: gcloud auth configure-docker asia-southeast1-docker.pkg.dev
@@ -50,7 +73,6 @@ jobs:
       # Deploy NFS Provisioner
       - name: Deploy NFS Provisioner
         run: |
-          gcloud container clusters get-credentials erp-next-cluster --region asia-southeast1
           kubectl create namespace nfs || true
           helm repo add nfs-ganesha-server-and-external-provisioner https://kubernetes-sigs.github.io/nfs-ganesha-server-and-external-provisioner
           helm repo update
@@ -62,7 +84,6 @@ jobs:
       # Deploy ERPNext using Helm
       - name: Deploy ERPNext with Helm
         run: |
-          gcloud container clusters get-credentials erp-next-cluster --region asia-southeast1
           kubectl create namespace erpnext || true
           helm repo add frappe https://helm.erpnext.com
           helm repo update
