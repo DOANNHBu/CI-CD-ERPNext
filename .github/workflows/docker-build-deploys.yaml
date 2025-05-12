@@ -47,25 +47,25 @@ jobs:
             --file=frappe_docker/images/layered/Containerfile .
           docker push asia-southeast1-docker.pkg.dev/${{ secrets.GOOGLE_PROJECT }}/demo/nginx:latest
 
-      # Deploy to GKE using Kubernetes manifests
-      - name: Deploy to GKE
-        env:
-          GOOGLE_PROJECT: ${{ secrets.GOOGLE_PROJECT }}
+      # Deploy NFS Provisioner
+      - name: Deploy NFS Provisioner
         run: |
           gcloud container clusters get-credentials cicd --region asia-southeast1
-          sed -i "s/GOOGLE_PROJECT/$GOOGLE_PROJECT/g" resources.yaml
-          kubectl apply -f resources.yaml
+          kubectl create namespace nfs || true
+          helm repo add nfs-ganesha-server-and-external-provisioner https://kubernetes-sigs.github.io/nfs-ganesha-server-and-external-provisioner
+          helm repo update
+          helm upgrade --install -n nfs in-cluster nfs-ganesha-server-and-external-provisioner/nfs-server-provisioner \
+            --set 'storageClass.mountOptions={vers=4.1}' \
+            --set persistence.enabled=true \
+            --set persistence.size=32Gi
 
-      # Deploy to GKE using Helm
-      - name: Deploy to GKE with Helm
-        env:
-          GOOGLE_PROJECT: ${{ secrets.GOOGLE_PROJECT }}
+      # Deploy ERPNext using Helm
+      - name: Deploy ERPNext with Helm
         run: |
           gcloud container clusters get-credentials cicd --region asia-southeast1
+          kubectl create namespace erpnext || true
           helm repo add frappe https://helm.erpnext.com
           helm repo update
-          helm upgrade --install frappe-bench --namespace erpnext frappe/erpnext \
+          helm upgrade --install frappe-bench --namespace erpnext -f frappe_helm/erpnext/values.yaml frappe/erpnext \
             --set image.repository=asia-southeast1-docker.pkg.dev/${{ secrets.GOOGLE_PROJECT }}/demo/nginx \
-            --set image.tag=latest \
-            --set persistence.worker.storageClass=nfs \
-            -f frappe_helm/custom-values.yaml
+            --set image.tag=latest
