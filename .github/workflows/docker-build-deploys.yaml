@@ -50,7 +50,7 @@ jobs:
       # Deploy NFS Provisioner
       - name: Deploy NFS Provisioner
         run: |
-          gcloud container clusters get-credentials cicd --region asia-southeast1
+          gcloud container clusters get-credentials erp-next-cluster --region asia-southeast1
           kubectl create namespace nfs || true
           helm repo add nfs-ganesha-server-and-external-provisioner https://kubernetes-sigs.github.io/nfs-ganesha-server-and-external-provisioner
           helm repo update
@@ -62,7 +62,7 @@ jobs:
       # Deploy ERPNext using Helm
       - name: Deploy ERPNext with Helm
         run: |
-          gcloud container clusters get-credentials cicd --region asia-southeast1
+          gcloud container clusters get-credentials erp-next-cluster --region asia-southeast1
           kubectl create namespace erpnext || true
           helm repo add frappe https://helm.erpnext.com
           helm repo update
