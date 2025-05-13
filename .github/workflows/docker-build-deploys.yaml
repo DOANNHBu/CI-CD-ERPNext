@@ -38,7 +38,6 @@ jobs:
           kubectl delete configmap --all --grace-period=0 --force -n nfs || true
           kubectl delete secret --all --grace-period=0 --force -n nfs || true
           kubectl delete pod --all --grace-period=0 --force -n erpnext || true
-          kubectl delete pvc --all --grace-period=0 --force -n erpnext || true
           kubectl delete pv --all --grace-period=0 --force -n erpnext || true
           kubectl delete configmap --all --grace-period=0 --force -n erpnext || true
           kubectl delete secret --all --grace-period=0 --force -n erpnext || true
