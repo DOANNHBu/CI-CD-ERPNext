@@ -31,37 +31,19 @@ jobs:
       # Cleanup Existing Resources
       - name: Cleanup Kubernetes Resources
         run: |
-          # Uninstall Helm releases
           helm uninstall frappe-bench -n erpnext || true
           helm uninstall in-cluster -n nfs || true
-
-          # Delete all resources in the nfs namespace
           kubectl delete pod --all --grace-period=0 --force -n nfs || true
-          kubectl delete pvc --all --grace-period=0 --force -n nfs || true
           kubectl delete pv --all --grace-period=0 --force -n nfs || true
           kubectl delete configmap --all --grace-period=0 --force -n nfs || true
           kubectl delete secret --all --grace-period=0 --force -n nfs || true
-
-          # Wait for the nfs namespace to be fully deleted
-          kubectl delete namespace nfs || true
-          while kubectl get namespace nfs >/dev/null 2>&1; do
-            echo "Waiting for namespace 'nfs' to be deleted..."
-            sleep 5
-          done
-
-          # Delete all resources in the erpnext namespace
           kubectl delete pod --all --grace-period=0 --force -n erpnext || true
           kubectl delete pvc --all --grace-period=0 --force -n erpnext || true
           kubectl delete pv --all --grace-period=0 --force -n erpnext || true
           kubectl delete configmap --all --grace-period=0 --force -n erpnext || true
           kubectl delete secret --all --grace-period=0 --force -n erpnext || true
-
-          # Wait for the erpnext namespace to be fully deleted
           kubectl delete namespace erpnext || true
-          while kubectl get namespace erpnext >/dev/null 2>&1; do
-            echo "Waiting for namespace 'erpnext' to be deleted..."
-            sleep 5
-          done
+          kubectl delete namespace nfs || true
 
       # Authenticate Docker with Google Cloud
       - name: Authenticate Docker
